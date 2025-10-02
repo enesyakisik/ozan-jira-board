@@ -81,11 +81,11 @@ st.sidebar.divider()
 st.sidebar.subheader("🎯 Filtreler")
 available_statuses = ["To Do", "In Progress", "Done", "Waiting for support", "Waiting for customer"]
 available_sla_states = ["🕓 Açık", "✅ Zamanında", "❌ Havuzda Bekliyor", "⚠️ Eskalasyon", "❌ SLA Dışı"]
-available_assignees = ["Unassigned", "Murat Çali", "Ceren Gülsoy", "Onur Delibaşı", "Enes Yakışık","Call Center","Call Center Agent"]
+available_assignees = ["Unassigned", "murat.cali", "ceren.gulsoy", "Onur Delibaşı", "Enes Yakışık","Call Center","Call Center Agent"]
 
 status_filter = st.sidebar.multiselect("Statü", available_statuses, default=available_statuses)
 sla_filter = st.sidebar.multiselect("SLA Durumu", available_sla_states, default=available_sla_states)
-assignee_filter = st.sidebar.multiselect("Atanan Kişi", available_assignees, default=available_assignees)
+assignee_filter = st.sidebar.multiselect("Atanan Kişi", available_assignees, default=[])
 
 st.sidebar.divider()
 fetch_button = st.sidebar.button("🔄 Verileri Getir")
@@ -138,8 +138,6 @@ if fetch_button:
                 jql_parts.append(f'resolved >= "{start_str}" AND resolved <= "{end_str} 23:59"')
 
             jql = " AND ".join(jql_parts) + " ORDER BY created DESC"
-            # JQL mesajı gizlendi
-            # st.info(f"📝 JQL Sorgusu: `{jql}`")
 
             # (Opsiyonel) Yaklaşık toplam
             approx_total = None
@@ -153,11 +151,8 @@ if fetch_button:
                 )
                 if res_cnt.status_code == 200:
                     approx_total = res_cnt.json().get("count")
-                    # Yaklaşık toplam sidebar mesajı gizlendi
-                    # if approx_total is not None:
-                    #     st.sidebar.info(f"📊 Yaklaşık toplam: {approx_total}")
             except requests.exceptions.RequestException:
-                pass  # sayımı alamazsak sorun değil
+                pass
 
             # 🔁 Yeni sayfalama: nextPageToken
             all_issues = []
@@ -174,7 +169,6 @@ if fetch_button:
                 params = {
                     "jql": jql,
                     "maxResults": current_max,
-                    # fields array<string> destekli; istersen virgüllü string de çalışır
                     "fields": ["summary", "created", "assignee", "status", "issuetype", "resolutiondate","labels"],
                     "expand": "changelog"
                 }
@@ -183,7 +177,6 @@ if fetch_button:
 
                 res = requests.get(url_search, headers=headers, params=params, auth=auth, timeout=30)
 
-                # Eski endpoint'e denk gelirsen 410 döner → kullanıcıyı açıkça uyar
                 if res.status_code == 410:
                     st.error("❌ Jira, eski arama endpoint'lerini kaldırdı.")
                     st.info("ℹ️ `/rest/api/3/search/jql` kullanılıyor olmalı ve sayfalama `nextPageToken` ile yapılmalı (bu sürüm bunu zaten yapıyor).")
@@ -192,20 +185,14 @@ if fetch_button:
                 if res.status_code != 200:
                     st.error(f"❌ API Hatası: {res.status_code}")
                     st.error(f"Detay: {res.text}")
-                    # JQL expander gizlendi
-                    # with st.expander("🔍 JQL Sorgusu"):
-                    #     st.code(jql)
                     st.stop()
 
                 data = res.json()
                 issues = data.get("issues", [])
                 all_issues.extend(issues)
 
-                # Yeni yanıtta total yok; isLast ve nextPageToken ile ilerliyoruz
                 next_token = data.get("nextPageToken")
                 is_last = data.get("isLast", True)
-                # Progress mesajı gizlendi
-                # st.sidebar.info(f"📥 {len(all_issues)} / {total_to_fetch} kayıt")
 
                 if is_last or not issues or not next_token:
                     break
@@ -213,18 +200,6 @@ if fetch_button:
             if not all_issues:
                 st.warning("⚠️ Hiç kayıt bulunamadı.")
                 st.stop()
-
-            # Başarı mesajı gizlendi
-            # st.sidebar.success(f"✅ {len(all_issues)} kayıt başarıyla getirildi!")
-
-            # Debug expander tamamen gizlendi
-            # with st.expander("🔍 Debug Bilgisi"):
-            #     st.write(f"**JQL:** {jql}")
-            #     st.write(f"**Yaklaşık Toplam:** {approx_total}")
-            #     st.write(f"**Getirilen:** {len(all_issues)}")
-            #     st.write(f"**Tarih Aralığı:** {start_date} - {end_date}")
-            #     if all_issues:
-            #         st.write(f"**İlk 5 Key:** {[i['key'] for i in all_issues[:5]]}")
 
             # Verileri işle
             results = []
@@ -261,6 +236,10 @@ if fetch_button:
 
                 if not assignee_name:
                     assignee_name = "Unassigned"
+
+                # ✅ ARKA PLANDA FİLTRELEME - Eğer atanan kişi filtresi varsa ve bu kayıt seçili değilse atla
+                if assignee_filter and assignee_name not in assignee_filter:
+                    continue
 
                 # Süreler (saat)
                 havuz_suresi = yanit_suresi = toplam_sure = None
@@ -300,35 +279,25 @@ if fetch_button:
                     "SLA Durumu": sla
                 })
 
+            # ✅ Eğer atanan kişi filtresi sonucunda hiç kayıt kalmadıysa
+            if not results:
+                st.warning("⚠️ Seçtiğiniz atanan kişi filtresine uygun kayıt bulunamadı.")
+                st.stop()
+
             df = pd.DataFrame(results)
-            # DataFrame oluşturma mesajı gizlendi
-            # st.info(f"📊 DataFrame oluşturuldu: {len(df)} kayıt")
 
-            # Filtreler
+            # Filtreler - Statü ve SLA
             original_count = len(df)
-            df = df[df["Statü"].isin(status_filter)]
-            df = df[df["SLA Durumu"].isin(sla_filter)]
-            #df = df[df["Atanan Kişi"].isin(assignee_filter)]
-
-            #filtered_count = len(df)
-            #if filtered_count < original_count:
-                #st.info(f"🎯 Filtreler sonrası: {filtered_count} kayıt (çıkarılan: {original_count - filtered_count})")
             
-            # Toplam kayıt mesajı gizlendi
-            # st.info(f"📋 Toplam kayıt: {len(df)}")
+            if status_filter:
+                df = df[df["Statü"].isin(status_filter)]
             
-            # Benzersizler expander'ı tamamen gizlendi
-            # with st.expander("📋 Verideki Benzersiz Değerler"):
-            #     c1, c2, c3 = st.columns(3)
-            #     with c1:
-            #         st.write("**Statüler:**")
-            #         st.write(sorted(pd.DataFrame(results)["Statü"].unique().tolist()))
-            #     with c2:
-            #         st.write("**SLA Durumları:**")
-            #         st.write(sorted(pd.DataFrame(results)["SLA Durumu"].unique().tolist()))
-            #     with c3:
-            #         st.write("**Atanan Kişiler:**")
-            #         st.write(sorted(pd.DataFrame(results)["Atanan Kişi"].unique().tolist()))
+            if sla_filter:
+                df = df[df["SLA Durumu"].isin(sla_filter)]
+            
+            filtered_count = len(df)
+            if filtered_count < original_count:
+                st.info(f"🎯 Filtreler sonrası: {filtered_count} kayıt (çıkarılan: {original_count - filtered_count})")
 
             if df.empty:
                 st.warning("⚠️ Filtreler uygulandıktan sonra hiç sonuç kalmadı.")
