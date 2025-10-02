@@ -81,7 +81,7 @@ st.sidebar.divider()
 st.sidebar.subheader("🎯 Filtreler")
 available_statuses = ["To Do", "In Progress", "Done", "Waiting for support", "Waiting for customer"]
 available_sla_states = ["🕓 Açık", "✅ Zamanında", "❌ Havuzda Bekliyor", "⚠️ Eskalasyon", "❌ SLA Dışı"]
-available_assignees = ["Unassigned", "murat.cali", "ceren.gulsoy", "Onur Delibaşı", "Enes Yakışık","Call Center","Call Center Agent"]
+available_assignees = ["Unassigned", "murat.cali", "Ceren Gülsoy", "Onur Delibaşı", "Enes Yakışık","Call Center","Call Center Agent"]
 
 status_filter = st.sidebar.multiselect("Statü", available_statuses, default=available_statuses)
 sla_filter = st.sidebar.multiselect("SLA Durumu", available_sla_states, default=available_sla_states)
