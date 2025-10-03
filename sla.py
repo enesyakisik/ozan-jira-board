@@ -79,7 +79,7 @@ st.sidebar.divider()
 
 # Filtreler
 st.sidebar.subheader("🎯 Filtreler")
-available_statuses = ["To Do", "In Progress", "Done", "Waiting for support", "Waiting for customer"]
+available_statuses = ["To Do", "In Progress", "Done", "Waiting for support", "Waiting for customer","Open"]
 available_sla_states = ["🕓 Açık", "✅ Zamanında", "❌ Havuzda Bekliyor", "⚠️ Eskalasyon", "❌ SLA Dışı"]
 available_assignees = ["Unassigned", "murat.cali", "Ceren Gülsoy", "Onur Delibaşı", "Enes Yakışık","Call Center","Call Center Agent"]
 
