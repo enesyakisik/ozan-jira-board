@@ -237,6 +237,12 @@ if fetch_button:
                 if not assignee_name:
                     assignee_name = "Unassigned"
 
+                # Bazı kayıtlar oluşturulurken doğrudan atanmış olabilir.
+                # Bu durumda değişiklik kaydı oluşmadığından assigned_dt boş kalır ve
+                # kayıt hatalı biçimde "Havuzda Bekliyor" olarak işaretlenir.
+                if assigned_dt is None and assignee_name != "Unassigned" and created_dt is not None:
+                    assigned_dt = created_dt
+
                 # ✅ ARKA PLANDA FİLTRELEME - Eğer atanan kişi filtresi varsa ve bu kayıt seçili değilse atla
                 if assignee_filter and assignee_name not in assignee_filter:
                     continue
