@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ozan-jira-board
+  labels:
+    app: ozan-jira-board
+spec:
+  type: ClusterIP
+  selector:
+    app: ozan-jira-board
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8501
