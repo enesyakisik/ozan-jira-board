@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ozan-jira-board
+  labels:
+    app: ozan-jira-board
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ozan-jira-board
+  template:
+    metadata:
+      labels:
+        app: ozan-jira-board
+    spec:
+      containers:
+        - name: ozan-jira-board
+          image: ozan-jira-board:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - streamlit
+            - run
+            - sla.py
+            - --server.port=8501
+            - --server.enableCORS=false
+            - --server.address=0.0.0.0
+          ports:
+            - containerPort: 8501
+              name: http
+          env:
+            - name: STREAMLIT_SERVER_PORT
+              value: "8501"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
